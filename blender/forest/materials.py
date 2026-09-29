@@ -549,7 +549,7 @@ def potion_material(name, color, glow, density=60.0):
     return mat
 
 
-def fog_material(density, color=(0.75, 0.85, 1.0), anisotropy=0.55, ground_height=2.5):
+def fog_material(density, color=(1.0, 0.85, 0.66), anisotropy=0.55, ground_height=2.5):
     """Volumetric mist that thickens near the ground (object-space Z)."""
     mat = bpy.data.materials.new("Forest Mist")
     nt = mat.node_tree
@@ -626,7 +626,7 @@ def library():
         potion_red=potion_material("Potion Red", (0.9, 0.12, 0.3), 3.0),
         potion_blue=potion_material("Potion Blue", (0.15, 0.4, 0.95), 3.0),
         potion_green=potion_material("Potion Green", (0.3, 0.9, 0.25), 3.0),
-        mist=fog_material(0.0015),
+        mist=fog_material(0.0018),
     )
     for mat in vars(mats).values():
         assert_links_valid(mat.node_tree)

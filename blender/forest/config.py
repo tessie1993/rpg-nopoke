@@ -36,7 +36,15 @@ FALLEN_LOG = (3.4, -13.5)
 
 # Forest trees are kept this far from the path centre and clearing edge.
 TREE_PATH_CLEARANCE = 3.8
-TREE_MIN_SPACING = 6.0
+TREE_MIN_SPACING = 8.5          # wide enough for sunlit gaps between crowns
+
+# Sun: golden hour, low in the south-south-east, behind most cameras.
+SUN_ELEVATION_DEG = 7.0
+SUN_AZIMUTH_DEG = 150.0         # clockwise from +Y (north)
+SUN_TEMPERATURE = 3200.0        # Kelvin
+# No forest trees within this distance of the line from the ancient tree
+# towards the sun, so the low sun reaches the clearing and the tree.
+SUN_LANE_HALF_WIDTH = 6.0
 
 # Cameras: name -> ((x, y, height above ground), (target x, y, height above ground), lens mm)
 CAMERA_PATH = ((1.0, -17.0, 1.75), (-0.4, 12.0, 2.15), 24.0)
@@ -44,7 +52,7 @@ CAMERA_CLEARING = ((5.5, 2.0, 1.9), (-1.2, 13.5, 1.35), 22.0)
 CAMERA_AERIAL = ((46.0, -60.0, 58.0), (0.0, 4.0, 0.0), 30.0)
 DETAIL_CAMERAS = {
     "Cam_Detail_Chest": ((0.8, -0.7, 0.95), (2.3, 1.2, 0.3), 35.0),
-    "Cam_Detail_Roots": ((0.6, 12.2, 1.3), (-2.2, 16.4, 1.1), 24.0),
+    "Cam_Detail_Roots": ((1.7, 14.15, 1.3), (-2.2, 16.4, 1.1), 24.0),
     "Cam_Detail_Runestone": ((0.4, 10.3, 1.35), (0.0, 13.3, 1.2), 30.0),
     "Cam_Detail_FairyRing": ((2.6, 3.7, 0.55), (4.3, 5.6, 0.1), 28.0),
     "Cam_Detail_Log": ((1.1, -15.4, 1.0), (3.4, -13.5, 0.4), 28.0),

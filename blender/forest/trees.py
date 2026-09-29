@@ -22,11 +22,11 @@ SPECIES = {
     # Broad, mossy oak-like trees.
     "Oak": ("small_maple", dict(scale=15.0, scaleV=3.0, ratio=0.03, ratioPower=1.25,
                                 branches=(0, 70, 16, 10), baseSize=0.33, baseSplits=1,
-                                leaves=26, leafScale=0.2, curveV=(25.0, 40.0, 40.0, 0.0),
+                                leaves=16, leafScale=0.2, curveV=(25.0, 40.0, 40.0, 0.0),
                                 attractUp=(-0.3, -0.5, 0.0, 0.0))),
     # Tall, slender canopy trees.
     "Beech": ("white_birch", dict(scale=19.0, scaleV=3.0, ratio=0.022, ratioPower=1.35,
-                                  branches=(0, 55, 22, 10), baseSize=0.45, leaves=22,
+                                  branches=(0, 55, 22, 10), baseSize=0.45, leaves=14,
                                   leafScale=0.2)),
 }
 
@@ -34,7 +34,7 @@ HERO = ("japanese_maple", dict(levels=3, scale=17.0, scaleV=0.0, ratio=0.065, ra
                                branches=(0, 40, 14, 10), length=(1.0, 0.42, 0.5, 0.3),
                                curveV=(250.0, 120.0, 80.0, 0.0), baseSize=0.3, baseSplits=2,
                                segSplits=(0.3, 0.35, 0.4, 0.0), splitAngle=(25.0, 20.0, 25.0, 0.0),
-                               rootFlare=1.6, leaves=28, leafScale=0.2))
+                               rootFlare=1.6, leaves=20, leafScale=0.2))
 
 
 def sapling_params(preset, overrides, seed):
@@ -334,11 +334,15 @@ def hero_tree(coll, blockers, terrain, mats, assets, seed=5):
 
 
 def plant_forest(coll, blockers, terrain, variants, keep_clear, seed=17):
-    """Poisson-disk forest of collection instances, clear of paths and landmarks."""
+    """Poisson-disk forest of collection instances, clear of paths, landmarks and
+    the lane the low sun shines along onto the ancient tree."""
     rng = random.Random(seed)
     half = config.TERRAIN_SIZE / 2 - 1.0
     spacing = config.TREE_MIN_SPACING
     cx, cy = config.CLEARING_CENTER
+    hx, hy = config.HERO_TREE
+    sun_x = math.sin(math.radians(config.SUN_AZIMUTH_DEG))
+    sun_y = math.cos(math.radians(config.SUN_AZIMUTH_DEG))
     cell = spacing / math.sqrt(2)
     grid = {}
     bm = bmesh.new()
@@ -353,6 +357,9 @@ def plant_forest(coll, blockers, terrain, variants, keep_clear, seed=17):
         if math.hypot(x - cx, y - cy) < config.CLEARING_RADIUS + 1.5:
             continue
         if any(math.hypot(x - kx, y - ky) < kr for kx, ky, kr in keep_clear):
+            continue
+        towards_sun = (x - hx) * sun_x + (y - hy) * sun_y
+        if towards_sun > 0 and abs((x - hx) * sun_y - (y - hy) * sun_x) < config.SUN_LANE_HALF_WIDTH:
             continue
         gx, gy = int((x + half) / cell), int((y + half) / cell)
         neighbours = (grid.get((gx + i, gy + j)) for i in range(-2, 3) for j in range(-2, 3))

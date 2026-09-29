@@ -8,8 +8,8 @@ from mathutils import Matrix, Vector
 from . import config
 from .util import link, node, set_input
 
-SUN_ELEVATION = math.radians(40.0)
-SUN_AZIMUTH = math.radians(115.0)   # side light from the east: rays cross the path diagonally
+SUN_ELEVATION = math.radians(config.SUN_ELEVATION_DEG)
+SUN_AZIMUTH = math.radians(config.SUN_AZIMUTH_DEG)
 
 
 def clear_scene():
@@ -47,7 +47,7 @@ def render_settings(samples=128, resolution=(1920, 1080)):
     cycles.dicing_camera = scene.camera
     scene.view_settings.view_transform = "AgX"
     scene.view_settings.look = "AgX - Medium High Contrast"
-    scene.view_settings.exposure = 1.3
+    scene.view_settings.exposure = 1.0
 
 
 def sun_direction():
@@ -56,7 +56,7 @@ def sun_direction():
                    math.sin(SUN_ELEVATION)))
 
 
-def world_and_sun(sky_strength=1.4, sun_strength=8.0):
+def world_and_sun(sky_strength=0.35, sun_strength=14.0):
     world = bpy.data.worlds.get("Forest Sky") or bpy.data.worlds.new("Forest Sky")
     bpy.context.scene.world = world
     nt = world.node_tree
@@ -73,7 +73,8 @@ def world_and_sun(sky_strength=1.4, sun_strength=8.0):
     light = bpy.data.lights.new("Sun", "SUN")
     light.energy = sun_strength
     light.angle = math.radians(1.2)
-    light.color = (1.0, 0.82, 0.6)
+    light.use_temperature = True
+    light.temperature = config.SUN_TEMPERATURE
     sun = bpy.data.objects.new("Sun", light)
     bpy.context.scene.collection.objects.link(sun)
     sun.rotation_euler = (-sun_direction()).to_track_quat("-Z", "Y").to_euler()

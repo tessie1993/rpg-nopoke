@@ -66,8 +66,10 @@ Cameras:
   - Sapling Tree Gen grows the skeletons.
   - The bark meshes have root flare, buttresses and moss at the base.
   - Leaves are instanced leaf sprays.
-  - There are two species with two variants each, and 204 trees placed with
-    Poisson-disk spacing.
+  - There are two species with two variants each, and 105 trees placed with
+    Poisson-disk spacing (8.5 m apart), so light reaches the forest floor.
+  - A lane towards the sun is kept free of trees so the low sun reaches the
+    clearing and the ancient tree.
   - The ancient hero tree also has surface roots and ivy.
 - **Ground cover:** 11 Geometry Nodes scatter layers. Each layer has its own
   path, clearing and patch masks, and trunks and props block scattering:
@@ -81,7 +83,10 @@ Cameras:
   - a crystal altar and crystal clusters in the tree roots
   - a fairy ring
   - wisps and fireflies
-  - ground mist
+  - warm ground mist
+- **Lighting:** golden hour. A low sun (7° above the horizon, 3200 K) shines
+  from the south-south-east, behind most cameras. The sky is a Blender
+  multiple-scattering sky.
 - **RPG items:** an open treasure chest full of coins, a lantern post, a
   sword in the stone, and potions.
 
