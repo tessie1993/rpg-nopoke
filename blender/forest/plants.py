@@ -170,7 +170,7 @@ def twig(name, coll, material, seed, length=0.4):
             p = p + d * length_ / steps
             points.append(p.copy())
             radii.append(radius * (1 - 0.65 * i / steps))
-        sweep_tube(bm, points, radii, 6 if depth == 0 else 5, uv_layer=uv, v_scale=4.0)
+        sweep_tube(bm, points, radii, 6 if depth == 0 else 5, uv_layer=uv, u_scale=2 * math.pi * radius)
         if depth < 1:
             for _ in range(rng.randint(1, 3)):
                 k = rng.randint(1, len(points) - 2)
@@ -209,7 +209,8 @@ def leaf_spray(name, coll, leaf_mat, twig_mat, seed, length=0.42, leaf_len=0.1):
         side = Vector((-heading.y, heading.x, 0.0))
         points = [origin + heading * (twig_len * i / 6) + Vector((0, 0, 0.012 * math.sin(i * 0.9)))
                   for i in range(7)]
-        sweep_tube(bm, points, [radius * (1 - i / 8) for i in range(7)], 5, uv_layer=uv)
+        sweep_tube(bm, points, [radius * (1 - i / 8) for i in range(7)], 5, uv_layer=uv,
+                   u_scale=2 * math.pi * radius)
         for k in range(leaves):
             t = 0.2 + 0.8 * k / (leaves - 1)
             anchor = origin + heading * (twig_len * t)

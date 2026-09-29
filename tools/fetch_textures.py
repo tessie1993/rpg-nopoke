@@ -22,6 +22,10 @@ MAPS = {
     "Rough": "rough",
     "Displacement": "disp",
 }
+# Extra maps for individual assets.
+EXTRA_MAPS = {
+    "rusty_metal_04": {"Metal": "metal"},   # bare metal vs rust mask
+}
 
 ASSETS = (
     "forest_leaves_02",      # main forest floor: moss, leaf litter, twigs
@@ -32,6 +36,10 @@ ASSETS = (
     "bark_brown_02",         # ancient hero tree
     "jolcham_oak_bark_01",   # forest trees
     "rough_pine_door",       # chest planks
+    "tree_bark_03",          # fallen log, lantern post, ivy stems
+    "bark_willow",           # twigs
+    "rusty_metal_04",        # iron bands, lantern frame; wear on steel and gold
+    "brown_leather",         # sword grip
 )
 
 
@@ -72,7 +80,7 @@ def main():
         files = fetch_json(API.format(asset=asset))
         folder = ROOT / asset
         folder.mkdir(parents=True, exist_ok=True)
-        for key, stem in MAPS.items():
+        for key, stem in {**MAPS, **EXTRA_MAPS.get(asset, {})}.items():
             entry = files[key][args.res]["jpg"]
             path = folder / f"{stem}.jpg"
             if path.exists() and md5_of(path) == entry["md5"]:

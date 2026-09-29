@@ -292,23 +292,57 @@ def bark_material(name, asset, scale_u, scale_v, moss=0.55, disp_scale=0.0, tint
     return mat
 
 
-def rock_material(name, asset, scale, moss=0.7, bump=0.6):
-    """Box-projected stone for meshes without meaningful UVs."""
-    mat, nt, bsdf, out = new_material(name)
+def box_projected(nt, asset, scale, maps):
+    """Object-space box projection for meshes without meaningful UVs.
+    scale is texture repeats per metre."""
     vec = mapping(nt, "Object", (scale, scale, scale), -1100, 300)
-    tex = texture_set(nt, asset, vec, -900, 500, projection="BOX", blend=0.3,
-                      maps=("diff", "rough", "disp"))
+    return texture_set(nt, asset, vec, -900, 500, projection="BOX", blend=0.3, maps=maps)
+
+
+def height_bump(nt, height, strength, distance, bsdf, x, y):
+    """Bump from a height map (tangent-space normal maps do not suit box projection)."""
+    bump = node(nt, "ShaderNodeBump", None, (x, y))
+    set_input(bump, "Strength", strength)
+    set_input(bump, "Distance", distance)
+    nt.links.new(luminance(nt, height, x - 200, y), socket(bump, "Height"))
+    link(nt, bump, "Normal", bsdf, "Normal")
+
+
+def scan_material(name, asset, scale, moss=0.0, bump=0.6, bump_distance=0.02, specular=0.4):
+    """Box-projected photo scan: stone, leather."""
+    mat, nt, bsdf, out = new_material(name)
+    tex = box_projected(nt, asset, scale, ("diff", "rough", "disp"))
     color, rough = tex["diff"], luminance(nt, tex["rough"], -600, 200)
     if moss:
         color, rough = moss_overlay(nt, color, rough, -600, -700, amount=moss)
-    bump_node = node(nt, "ShaderNodeBump", None, (300, -300))
-    set_input(bump_node, "Strength", bump)
-    set_input(bump_node, "Distance", 0.02)
-    nt.links.new(luminance(nt, tex["disp"], 100, -300), socket(bump_node, "Height"))
-    link(nt, bump_node, "Normal", bsdf, "Normal")
+    height_bump(nt, tex["disp"], bump, bump_distance, bsdf, 300, -300)
     nt.links.new(color, socket(bsdf, "Base Color"))
     nt.links.new(rough, socket(bsdf, "Roughness"))
-    set_input(bsdf, "Specular IOR Level", 0.4)
+    set_input(bsdf, "Specular IOR Level", specular)
+    return mat
+
+
+def metal_material(name, asset, scale, color=None, rough_range=(0.15, 0.4), bump=0.3):
+    """Box-projected metal scan. Without color the scan's colour and metal mask
+    are used (rusted iron); with color only its roughness and relief are kept,
+    remapped to rough_range, as wear on polished metal."""
+    mat, nt, bsdf, out = new_material(name)
+    maps = ("rough", "disp") if color else ("diff", "rough", "metal", "disp")
+    tex = box_projected(nt, asset, scale, maps)
+    rough = luminance(nt, tex["rough"], -600, 200)
+    if color:
+        set_input(bsdf, "Base Color", (*color, 1))
+        set_input(bsdf, "Metallic", 1.0)
+        remap = node(nt, "ShaderNodeMapRange", None, (-400, 200))
+        nt.links.new(rough, socket(remap, "Value"))
+        set_input(remap, "To Min", rough_range[0])
+        set_input(remap, "To Max", rough_range[1])
+        rough = socket(remap, "Result", output=True)
+    else:
+        nt.links.new(tex["diff"], socket(bsdf, "Base Color"))
+        nt.links.new(luminance(nt, tex["metal"], -600, 0), socket(bsdf, "Metallic"))
+    nt.links.new(rough, socket(bsdf, "Roughness"))
+    height_bump(nt, tex["disp"], bump, 0.003, bsdf, 300, -300)
     return mat
 
 
@@ -322,12 +356,12 @@ def wood_planks_material():
     return mat
 
 
-def procedural_wood(name, base=(0.19, 0.12, 0.07), rings=True):
-    """Cut log ends and small twigs: noise-streaked wood with optional rings."""
+def end_grain_material(name, base=(0.19, 0.12, 0.07)):
+    """Sawn log ends and corks: distorted growth rings (no end-grain scan is
+    available on Poly Haven)."""
     mat, nt, bsdf, out = new_material(name)
     coord = node(nt, "ShaderNodeTexCoord", None, (-1000, 0))
-    wave = node(nt, "ShaderNodeTexWave", "Rings" if rings else "Grain", (-800, 100),
-                wave_type="RINGS" if rings else "BANDS")
+    wave = node(nt, "ShaderNodeTexWave", "Rings", (-800, 100), wave_type="RINGS")
     set_input(wave, "Scale", 6.0)
     set_input(wave, "Distortion", 6.0)
     set_input(wave, "Detail", 4.0)
@@ -415,7 +449,7 @@ def foliage_material(name, dark, light, translucency=0.35, uv_gradient=False, hu
 
 
 def simple_material(name, color, roughness=0.5, metallic=0.0, subsurface=0.0, emission=None,
-                    transmission=0.0, ior=1.45, coat=0.0):
+                    transmission=0.0, ior=1.45):
     mat, nt, bsdf, out = new_material(name)
     set_input(bsdf, "Base Color", (*color, 1))
     set_input(bsdf, "Roughness", roughness)
@@ -423,7 +457,6 @@ def simple_material(name, color, roughness=0.5, metallic=0.0, subsurface=0.0, em
     set_input(bsdf, "Subsurface Weight", subsurface)
     set_input(bsdf, "Transmission Weight", transmission)
     set_input(bsdf, "IOR", ior)
-    set_input(bsdf, "Coat Weight", coat)
     if emission:
         set_input(bsdf, "Emission Color", (*emission[0], 1))
         set_input(bsdf, "Emission Strength", emission[1])
@@ -494,6 +527,28 @@ def crystal_material(name, color, glow_strength):
     return mat
 
 
+def potion_material(name, color, glow, density=60.0):
+    """Clear liquid coloured by absorption inside it, so the colour deepens with
+    thickness like a real coloured liquid, plus a faint glow from within.
+    density is per metre; glow is volume emission, so it also scales with thickness."""
+    mat, nt, bsdf, out = new_material(name)
+    set_input(bsdf, "Base Color", (1.0, 1.0, 1.0, 1))
+    set_input(bsdf, "Roughness", 0.02)
+    set_input(bsdf, "Transmission Weight", 1.0)
+    set_input(bsdf, "IOR", 1.34)
+    absorb = node(nt, "ShaderNodeVolumeAbsorption", None, (300, -300))
+    set_input(absorb, "Color", (*color, 1))
+    set_input(absorb, "Density", density)
+    emit = node(nt, "ShaderNodeEmission", None, (300, -450))
+    set_input(emit, "Color", (*color, 1))
+    set_input(emit, "Strength", glow)
+    add = node(nt, "ShaderNodeAddShader", None, (600, -350))
+    link(nt, absorb, "Volume", add, "Shader")
+    link(nt, emit, "Emission", add, "Shader_001")
+    link(nt, add, "Shader", out, "Volume")
+    return mat
+
+
 def fog_material(density, color=(0.75, 0.85, 1.0), anisotropy=0.55, ground_height=2.5):
     """Volumetric mist that thickens near the ground (object-space Z)."""
     mat = bpy.data.materials.new("Forest Mist")
@@ -528,17 +583,18 @@ def library():
                                 tint=(0.62, 0.58, 0.52, 1)),
         tree_bark=bark_material("Oak Bark", "jolcham_oak_bark_01", 1.0, 0.5, moss=0.65,
                                tint=(0.5, 0.47, 0.42, 1)),
-        log_bark=bark_material("Log Bark", "bark_brown_02", 1.0, 1.0, moss=1.0),
-        cut_wood=procedural_wood("Cut Wood", rings=True),
-        twig=procedural_wood("Twig", base=(0.16, 0.11, 0.07), rings=False),
-        boulder=rock_material("Mossy Boulder", "mossy_rock", 0.35, moss=0.85),
-        pebble=rock_material("Pebble", "lichen_rock", 3.0, moss=0.15),
-        runestone=rock_material("Rune Stone", "lichen_rock", 0.55, moss=0.55),
+        log_bark=bark_material("Log Bark", "tree_bark_03", 1.0, 1.0, moss=0.7),
+        cut_wood=end_grain_material("Cut Wood"),
+        twig=bark_material("Twig", "bark_willow", 2.0, 2.0, moss=0.2),
+        boulder=scan_material("Mossy Boulder", "mossy_rock", 0.35, moss=0.85),
+        pebble=scan_material("Pebble", "lichen_rock", 3.0, moss=0.15),
+        runestone=scan_material("Rune Stone", "lichen_rock", 0.55, moss=0.55),
         chest_wood=wood_planks_material(),
-        iron=simple_material("Old Iron", (0.09, 0.08, 0.075), roughness=0.55, metallic=1.0),
-        gold=simple_material("Gold", (1.0, 0.72, 0.3), roughness=0.22, metallic=1.0),
-        steel=simple_material("Blade Steel", (0.62, 0.63, 0.65), roughness=0.28, metallic=1.0),
-        leather=simple_material("Leather", (0.12, 0.06, 0.03), roughness=0.7),
+        iron=metal_material("Old Iron", "rusty_metal_04", 1.5),
+        gold=metal_material("Gold", "rusty_metal_04", 4.0, color=(1.0, 0.72, 0.3), rough_range=(0.12, 0.35)),
+        steel=metal_material("Blade Steel", "rusty_metal_04", 3.0, color=(0.62, 0.63, 0.65),
+                             rough_range=(0.12, 0.38)),
+        leather=scan_material("Leather", "brown_leather", 2.5, bump=0.4, bump_distance=0.002, specular=0.5),
         glass=simple_material("Glass", (0.95, 0.97, 1.0), roughness=0.02, transmission=1.0, ior=1.45),
         canopy=foliage_material("Oak Leaves", (0.022, 0.065, 0.012), (0.11, 0.19, 0.03), translucency=0.4),
         grass=foliage_material("Grass", (0.03, 0.075, 0.012), (0.12, 0.21, 0.035), translucency=0.4,
@@ -567,12 +623,9 @@ def library():
         wisp=glow_material("Wisp", (0.35, 0.85, 1.0), 10.0),
         firefly=glow_material("Firefly", (1.0, 0.8, 0.3), 25.0),
         flame=glow_material("Candle Flame", (1.0, 0.5, 0.12), 15.0),
-        potion_red=simple_material("Potion Red", (0.9, 0.15, 0.35), roughness=0.05, transmission=1.0,
-                                   ior=1.34, emission=((1.0, 0.2, 0.45), 1.2)),
-        potion_blue=simple_material("Potion Blue", (0.2, 0.45, 1.0), roughness=0.05, transmission=1.0,
-                                    ior=1.34, emission=((0.25, 0.55, 1.0), 1.2)),
-        potion_green=simple_material("Potion Green", (0.3, 0.95, 0.35), roughness=0.05, transmission=1.0,
-                                     ior=1.34, emission=((0.35, 1.0, 0.4), 1.2)),
+        potion_red=potion_material("Potion Red", (0.9, 0.12, 0.3), 3.0),
+        potion_blue=potion_material("Potion Blue", (0.15, 0.4, 0.95), 3.0),
+        potion_green=potion_material("Potion Green", (0.3, 0.9, 0.25), 3.0),
         mist=fog_material(0.0015),
     )
     for mat in vars(mats).values():
